@@ -5,6 +5,8 @@ Created on Sun Nov 12 22:17:08 2017
 @author: gshai
 """
 
+import json
+
 from datahandler import DataContainer
 
 import numpy as np
@@ -20,6 +22,10 @@ def _main():
     #%%
 
     tf.reset_default_graph()
+
+    # https://stackoverflow.com/questions/2835559/parsing-values-from-a-json-file
+    with open('params_mode.json', 'rb') as jsonfile:
+        params_mode = json.load(jsonfile)
 
     #%% add inputs
 
@@ -68,6 +74,8 @@ def _main():
 
     #%% forward propagation
 
+    layer_dropout = ['layer_2', 'layer_3', 'layer_4']
+
     # for dropout layer - probability of keping a neuron
     keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
@@ -75,7 +83,7 @@ def _main():
     for layer_name, params in net_params.items():
         Z = tf.matmul(params['W'], A) + params['b']
         A = tf.nn.relu(Z)
-        if layer_name in ['layer_2', 'layer_3', 'layer_4']:
+        if layer_name in layer_dropout:
             A = tf.nn.dropout(A, keep_prob)
     Z_L = Z
 
@@ -93,31 +101,30 @@ def _main():
     #%% load datasets
 
     # sizes of datasets
-    m_train = 41000
-    m_dev = 1000
+    m_train = 40000
+    m_dev = 2000
 
     dataset = DataContainer.get_dataset('dataset/train.csv', shuffle=True)
     dataset.split_train_dev(m_train, m_dev)
 
     #%% parameters
-    epochs = 200
-    minibatches_size = 1000
 
-    # hyperparameters
-    learn_rate = 0.0001
+    epochs = params_mode['epochs']
+    minibatches_size = params_mode['minibatches_size']
+    learn_rate = params_mode['learning_rate']
 
-    lambd_val_list = [0.001]
-    keep_prob_list = [0.6]
+    lambd_val_list = params_mode['lambda_reg_list']
+    keep_prob_list = params_mode['keep_prob_list']
 
-#    for idx in range(15):
-#        rand_power = -4 * np.random.rand() - 3
-#        lambd_val_list.append(10 ** rand_power)
-#
-#    for idx in range(15):
-#        rand_value = 0.75 + np.random.rand() / 4
-#        keep_prob_list.append(rand_value)
+    # for idx in range(15):
+    #     rand_power = -4 * np.random.rand() - 3
+    #     lambd_val_list.append(10 ** rand_power)
 
-    plt.figure()
+    # for idx in range(15):
+    #     rand_value = 0.75 + np.random.rand() / 4
+    #     keep_prob_list.append(rand_value)
+
+    fig = plt.figure()
     plt.axis([
         np.min(keep_prob_list) * 0.9, np.max(keep_prob_list) * 1.1,
         np.min(lambd_val_list) * 0.9, np.max(lambd_val_list) * 1.1
@@ -129,6 +136,7 @@ def _main():
     plt.xlabel('keep_prob')
     plt.ylabel('lambda (log)')
     plt.show()
+    plt.close(fig)
 
     input("Press Enter to continue...")
 
@@ -146,8 +154,8 @@ def _main():
 
     # https://www.tensorflow.org/api_docs/python/tf/nn/l2_loss
     regularizer = 0
-    for layer_name, params in net_params.items():
-        regularizer += tf.nn.l2_loss(params['W'])
+    for _, layer_params in net_params.items():
+        regularizer += tf.nn.l2_loss(layer_params['W'])
 
     cost = tf.reduce_mean(loss_per_example + lambd * regularizer)
 
@@ -177,7 +185,12 @@ def _main():
 
             sess.run(tf.global_variables_initializer())
 
-            costs_run_table = pd.DataFrame(columns=['cost_train', 'cost_dev'])
+            costs_run_table = pd.DataFrame(columns=[
+                'cost_train',
+                'accuracy_train',
+                'cost_dev',
+                'accuracy_dev',
+            ])
 
             try:
                 for epoch in range(1, epochs + 1):
@@ -189,20 +202,18 @@ def _main():
                     # https://stackoverflow.com/questions/3823752/display-image-as-grayscale-using-matplotlib
                     # https://stackoverflow.com/questions/39659998/using-pyplot-to-create-grids-of-plots
                     fig = plt.figure()
-
                     ax1 = fig.add_subplot(1, 2, 1)
                     digits_train_example = train_batches[0][0][:, 0]
                     ax1.imshow(digits_train_example.reshape(
                         (28, 28)), cmap='gray')
                     ax1.set_title("train [0]")
-
                     ax2 = fig.add_subplot(1, 2, 2)
                     digits_train_example = dataset.dev_features[:, 0]
                     ax2.imshow(digits_train_example.reshape(
                         (28, 28)), cmap='gray')
                     ax2.set_title("dev [0]")
-
                     plt.show()
+                    plt.close(fig)
 
                     cost_train_epoch = 0
                     number_of_iterations = len(train_batches)
@@ -226,8 +237,14 @@ def _main():
 
                         cost_train_epoch += cost_train_batch / number_of_iterations
 
+                    accuracy_train = sess.run(accuracy, feed_dict={
+                        features_tf: dataset.train_features,
+                        correct_labels_tf: dataset.train_labels,
+                        keep_prob: 1.0,
+                    })
+
                     # compute only entropy part of cost, without regularization
-                    cost_dev_epoch = sess.run(cost, feed_dict={
+                    cost_dev_epoch, accuracy_dev = sess.run([cost, accuracy], feed_dict={
                         features_tf: dataset.dev_features,
                         correct_labels_tf: dataset.dev_labels,
                         keep_prob: 1.0,
@@ -235,30 +252,42 @@ def _main():
                     })
 
                     costs_run_table = costs_run_table.append({
+                        'epoch': epoch,
                         'cost_train': cost_train_epoch,
+                        'accuracy_train': accuracy_train * 100,
                         'cost_dev': cost_dev_epoch,
+                        'accuracy_dev': accuracy_dev * 100,
                     }, ignore_index=True)
 
-                    print("epoch {} train cost {:.4f}, dev cost {:.4f}".format(
-                        epoch, cost_train_epoch, cost_dev_epoch))
+                    print(
+                        "epoch {}; cost train {:5.4f}, dev {:5.4f}; acc train {:6.4f}%, dev {:6.4f}%".format(
+                            epoch,
+                            cost_train_epoch,
+                            cost_dev_epoch,
+                            accuracy_train * 100,
+                            accuracy_dev * 100))
 
             except KeyboardInterrupt:
                 exit_flag = True
 
-            accuracy_train = sess.run(accuracy, feed_dict={
-                features_tf: dataset.train_features,
-                correct_labels_tf: dataset.train_labels,
-                keep_prob: 1.0,
-            })
+            fig = plt.figure()
+            plt.plot(costs_run_table['cost_train'])
+            plt.plot(costs_run_table['cost_dev'])
+            plt.legend(['cost_train', 'cost_dev'])
+            plt.title('Costs (epoch)')
+            # https://stackoverflow.com/questions/9622163/save-plot-to-image-file-instead-of-displaying-it-using-matplotlib
+            fig.savefig('results/costs_epoch.png')
+            plt.show()
+            plt.close(fig)
 
-            accuracy_dev = sess.run(accuracy, feed_dict={
-                features_tf: dataset.dev_features,
-                correct_labels_tf: dataset.dev_labels,
-                keep_prob: 1.0,
-            })
-
-            print("Result train: {:6.4f}%".format(accuracy_train * 100))
-            print("Result dev: {:6.4f}%".format(accuracy_dev * 100))
+            fig = plt.figure()
+            plt.plot(costs_run_table['accuracy_train'])
+            plt.plot(costs_run_table['accuracy_dev'])
+            plt.legend(['accuracy_train', 'accuracy_dev'])
+            plt.title('Accuracy (epoch)')
+            fig.savefig('results/accuracy_epoch.png')
+            plt.show()
+            plt.close(fig)
 
             # Save the variables to disk.
             # https://www.tensorflow.org/programmers_guide/saved_model
@@ -276,13 +305,6 @@ def _main():
                 'accuracy_dev': accuracy_dev,
             }, ignore_index=True)
 
-            plt.figure()
-            plt.plot(costs_run_table['cost_train'])
-            plt.plot(costs_run_table['cost_dev'])
-            plt.legend(['cost_train', 'cost_dev'])
-            plt.title('Costs (epoch)')
-            plt.show()
-
             if exit_flag:
                 break
 
@@ -294,7 +316,9 @@ def _main():
         index=True,
     )
 
-    input("Press Enter to continue...")
+    #%%
+
+    input("Press Enter to Predict...")
 
     #%%
 
@@ -311,10 +335,11 @@ def _main():
     predictions_test_df['ImageId'] += 1
 
     for idx, row in predictions_test_df.head(10).iterrows():
-        plt.figure()
+        fig = plt.figure()
         plt.imshow(test_features_array[:, idx].reshape((28, 28)), cmap='gray')
         plt.show()
         print("predicted: {}\n".format(row['Label']))
+        plt.close(fig)
 
     predictions_test_df.to_csv(
         'results/digits_test.csv',
