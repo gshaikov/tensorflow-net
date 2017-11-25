@@ -46,7 +46,7 @@ def _main():
 
     #%% create weights and biases
 
-    layers_size = [features_size, 400, 200, 100, 50, 25, labels_size]
+    layers_size = [features_size, 700, 400, 200, 100, 50, 25, labels_size]
 
     init_xavier = tf.contrib.layers.xavier_initializer()
     init_zeros = tf.zeros_initializer()
