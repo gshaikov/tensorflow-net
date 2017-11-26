@@ -33,11 +33,11 @@ def conv_layer(idx, layer_a_prev, ch_out, is_training,
         shape=[filt, filt, ch_in, ch_out],
         initializer=tf.contrib.layers.xavier_initializer(),
     )
-    # bias = tf.get_variable(
-    #     name="b" + str(idx),
-    #     shape=[1, 1, 1, ch_out],
-    #     initializer=tf.zeros_initializer(),
-    # )
+    bias = tf.get_variable(
+        name="b" + str(idx),
+        shape=[1, 1, 1, ch_out],
+        initializer=tf.zeros_initializer(),
+    )
 
     layer_c = tf.nn.conv2d(
         input=layer_a_prev,
@@ -45,9 +45,10 @@ def conv_layer(idx, layer_a_prev, ch_out, is_training,
         strides=[1, stride, stride, 1],
         padding=pad,
     )
-    layer_b = tf.layers.batch_normalization(
-        layer_c, axis=-1, training=is_training)
-    layer_a = tf.nn.relu(layer_b)
+    # layer_z = tf.layers.batch_normalization(
+    #     layer_c, axis=-1, training=is_training)
+    layer_z = tf.add(layer_c, bias)
+    layer_a = tf.nn.relu(layer_z)
     return layer_a
 
 
