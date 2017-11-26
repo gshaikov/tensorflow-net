@@ -1,7 +1,7 @@
 {
     "epochs": 200,
-    "minibatches_size": 128,
-    "learning_rate": 0.0002,
+    "minibatches_size": 256,
+    "learning_rate": 0.0001,
     "keep_prob_list": [
         0.8
     ]
