@@ -12,17 +12,17 @@ from sklearn.preprocessing import OneHotEncoder
 
 
 class DataContainer(object):
-    '''Data'''
+    '''DataContainer'''
 
     def __init__(self, data):
         self.data = data
 
-        self.train_m = None
-        self.train_features = None
+        self.train_size = None
+        self.train_images = None
         self.train_labels = None
 
-        self.dev_m = None
-        self.dev_features = None
+        self.dev_size = None
+        self.dev_images = None
         self.dev_labels = None
 
     @classmethod
@@ -45,21 +45,35 @@ class DataContainer(object):
         pd_table = pd_table.apply(norm_func, axis=0)
         return pd_table
 
-    def split_train_dev(self, train_m, dev_m):
+    def split_train_dev(self, train_size, dev_size):
         '''split_train_dev'''
-        self.train_m = train_m
-        self.dev_m = dev_m
+        self.train_size = train_size
+        self.dev_size = dev_size
 
-        # create features and labels arrays
+        # create images and labels arrays
         # convert each 0...9 label to [0,1,0,...,0] vector
-        features = self.data[:, 1:].T
-        labels = OneHotEncoder(sparse=False).fit_transform(self.data[:, :1]).T
+        images = self.data[:, 1:]
+        images = self.array_to_img(images)
+
+        labels = self.data[:, :1]
+        labels = OneHotEncoder(sparse=False).fit_transform(labels)
 
         # split arrays into train and dev
-        self.train_features, self.dev_features = self._split_array(
-            features, self.train_m, self.dev_m)
+        self.train_images, self.dev_images = self._split_array(
+            images, self.train_size, self.dev_size)
         self.train_labels, self.dev_labels = self._split_array(
-            labels, self.train_m, self.dev_m)
+            labels, self.train_size, self.dev_size)
+
+    @staticmethod
+    def array_to_img(array):
+        '''
+        array_to_img
+        shape of array -- [# of examples, # features]
+        '''
+        n_examples = array.shape[0]
+        images = np.reshape(array, [n_examples, 28, 28])
+        images = images[:, :, :, np.newaxis]
+        return images
 
     @staticmethod
     def _split_array(data_array, *args):
@@ -68,7 +82,7 @@ class DataContainer(object):
             sets = list()
             start = 0
             for size in args:
-                sets.append(data_array[:, start:start + size])
+                sets.append(data_array[start:start + size])
                 start = size
         else:
             sets = [data_array]
@@ -77,28 +91,27 @@ class DataContainer(object):
 
     def shuffle_train(self):
         '''shuffle_train'''
-        # https://docs.scipy.org/doc/numpy-1.13.0/reference/generated/numpy.random.shuffle.html
-        train_array = np.hstack((self.train_features.T, self.train_labels.T))
-        np.random.shuffle(train_array)
-        self.train_features = train_array.T[:-10, :]
-        self.train_labels = train_array.T[-10:, :]
+        reorder = list(np.random.permutation(self.train_size))
+        self.train_images = self.train_images[reorder, :, :, :]
+        self.train_labels = self.train_labels[reorder, :]
 
     def get_train_batches(self, minibatches_size):
         '''
         get_train_batches
         '''
-        n_minibatches = np.floor(self.train_m / minibatches_size).astype('int')
-        last_minibatch = self.train_m - n_minibatches * minibatches_size
+        n_minibatches = np.floor(
+            self.train_size / minibatches_size).astype('int')
+        last_minibatch = self.train_size - n_minibatches * minibatches_size
 
         # create batches
-        batches_train_features = self._create_batches(
-            self.train_features, n_minibatches, last_minibatch)
+        batches_train_images = self._create_batches(
+            self.train_images, n_minibatches, last_minibatch)
 
         batches_train_labels = self._create_batches(
             self.train_labels, n_minibatches, last_minibatch)
 
         # put feature and label batches together
-        batches_train = list(zip(batches_train_features, batches_train_labels))
+        batches_train = list(zip(batches_train_images, batches_train_labels))
         return batches_train
 
     @staticmethod
@@ -106,24 +119,24 @@ class DataContainer(object):
         '''_create_batches'''
         if last_minibatch:
             dataset_batches = np.split(
-                dataset[:, :-last_minibatch], n_minibatches, axis=1)
-            dataset_batches.append(dataset[:, -last_minibatch:])
+                dataset[:-last_minibatch], n_minibatches, axis=0)
+            dataset_batches.append(dataset[-last_minibatch:])
         else:
-            dataset_batches = np.split(dataset, n_minibatches, axis=1)
+            dataset_batches = np.split(dataset, n_minibatches, axis=0)
         return dataset_batches
 
 
-if __name__ == '__main__':
-    pass
-#    dataset_train = Data.get_dataset('dataset/train.csv', shuffle=True)
-#
-#    train_m = 12
-#    dev_m = 5
-#    dataset_train.split_train_dev(train_m, dev_m)
-#
-#    dataset_train.shuffle_train()
-#
-#    minibatches_size = 4
-#    output = dataset_train.get_train_batches(minibatches_size)
-#
-#    dataset_test = Data.get_dataset('dataset/test.csv')
+# if __name__ == '__main__':
+#     dataset_train = DataContainer.get_dataset(
+#         'dataset/train.csv', shuffle=True)
+
+#     train_size = 12
+#     dev_size = 5
+#     dataset_train.split_train_dev(train_size, dev_size)
+
+#     dataset_train.shuffle_train()
+
+#     minibatches_size = 4
+#     output = dataset_train.get_train_batches(minibatches_size)
+
+#     dataset_test = DataContainer.get_dataset('dataset/test.csv')
