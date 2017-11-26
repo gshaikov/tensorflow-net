@@ -23,7 +23,7 @@ import IPython.display
 #%%
 
 
-def conv_layer(idx, layer_a_prev, ch_out,
+def conv_layer(idx, layer_a_prev, ch_out, is_training,
                filt=3, stride=1, pad='SAME'):
     '''conv_layer'''
     ch_in = layer_a_prev.get_shape().as_list()[-1]
@@ -33,11 +33,11 @@ def conv_layer(idx, layer_a_prev, ch_out,
         shape=[filt, filt, ch_in, ch_out],
         initializer=tf.contrib.layers.xavier_initializer(),
     )
-    bias = tf.get_variable(
-        name="b" + str(idx),
-        shape=[1, 1, 1, ch_out],
-        initializer=tf.zeros_initializer(),
-    )
+    # bias = tf.get_variable(
+    #     name="b" + str(idx),
+    #     shape=[1, 1, 1, ch_out],
+    #     initializer=tf.zeros_initializer(),
+    # )
 
     layer_c = tf.nn.conv2d(
         input=layer_a_prev,
@@ -45,7 +45,9 @@ def conv_layer(idx, layer_a_prev, ch_out,
         strides=[1, stride, stride, 1],
         padding=pad,
     )
-    layer_a = tf.nn.relu(tf.add(layer_c, bias))
+    layer_b = tf.layers.batch_normalization(
+        layer_c, axis=-1, training=is_training)
+    layer_a = tf.nn.relu(layer_b)
     return layer_a
 
 
@@ -53,18 +55,18 @@ def fc_layer(idx, layer_a_prev, num_units):
     '''fc_layer'''
     num_units_prev = layer_a_prev.get_shape().as_list()[-1]
 
-    weight_fc = tf.get_variable(
+    weight = tf.get_variable(
         "w" + str(idx),
         shape=[num_units_prev, num_units],
         initializer=tf.contrib.layers.xavier_initializer(),
     )
-
-    bias_fc = tf.get_variable(
+    bias = tf.get_variable(
         "b" + str(idx),
         shape=[1, num_units],
         initializer=tf.zeros_initializer(),
     )
-    layer_z = tf.add(tf.matmul(layer_a_prev, weight_fc), bias_fc)
+
+    layer_z = tf.add(tf.matmul(layer_a_prev, weight), bias)
     layer_a = tf.nn.relu(layer_z)
     return layer_a, layer_z
 
@@ -118,11 +120,16 @@ def _main():
         name='keep_prob'
     )
 
+    is_training = tf.placeholder(
+        tf.bool,
+        name='is_training'
+    )
+
     #%% forward propagation
 
     # layer 1
     layer1_a = conv_layer(
-        1, images_ph, 16,
+        1, images_ph, 32, is_training,
         filt=5, stride=1, pad='VALID',
     )
 
@@ -135,7 +142,7 @@ def _main():
 
     # layer 2
     layer2_a = conv_layer(
-        2, layer1_p, 32,
+        2, layer1_p, 64, is_training,
         filt=3, stride=1, pad='SAME',
     )
 
@@ -148,7 +155,7 @@ def _main():
 
     # layer 3
     layer3_a = conv_layer(
-        3, layer2_p, 64,
+        3, layer2_p, 128, is_training,
         filt=3, stride=1, pad='SAME',
     )
 
@@ -168,7 +175,7 @@ def _main():
 
     layer3_flat = tf.contrib.layers.flatten(layer3_p)
 
-    layer4_a, _ = fc_layer(4, layer3_flat, 576)
+    layer4_a, _ = fc_layer(4, layer3_flat, 1152)
 
     layer4_a_drop = tf.nn.dropout(layer4_a, keep_prob_ph)
 
@@ -246,12 +253,12 @@ def _main():
                 cost_train_epoch_list = list()
                 accuracy_train_epoch_list = list()
                 for idx, (examples_images, examples_labels) in enumerate(train_batches):
-                    # optimzie over all cost, incl. dropout
                     cost_train_batch, accuracy_train_batch, _ = sess.run(
                         [cost, accuracy, optimizer_step], feed_dict={
                             images_ph: examples_images,
                             correct_labels_ph: examples_labels,
                             keep_prob_ph: keep_prob_val,
+                            is_training: True,
                         }
                     )
                     cost_train_epoch_list.append(cost_train_batch)
@@ -272,6 +279,7 @@ def _main():
                     images_ph: dataset.dev_images,
                     correct_labels_ph: dataset.dev_labels,
                     keep_prob_ph: 1.0,
+                    is_training: False,
                 })
 
                 costs_run_table = costs_run_table.append({
@@ -349,6 +357,7 @@ def _main():
     predictions_test = sess.run(predicted_label, feed_dict={
         images_ph: test_images,
         keep_prob_ph: 1.0,
+        is_training: False,
     })
 
     predictions_test_df = pd.DataFrame(predictions_test).reset_index()
