@@ -130,8 +130,8 @@ def _main():
 
     # layer 1
     layer1_a = conv_layer(
-        1, images_ph, 32, is_training,
-        filt=5, stride=1, pad='VALID',
+        1, images_ph, 64, is_training,
+        filt=5, stride=1, pad='SAME',
     )
 
     layer1_p = tf.nn.max_pool(
@@ -143,7 +143,7 @@ def _main():
 
     # layer 2
     layer2_a = conv_layer(
-        2, layer1_p, 64, is_training,
+        2, layer1_p, 128, is_training,
         filt=3, stride=1, pad='SAME',
     )
 
@@ -156,7 +156,7 @@ def _main():
 
     # layer 3
     layer3_a = conv_layer(
-        3, layer2_p, 128, is_training,
+        3, layer2_p, 256, is_training,
         filt=3, stride=1, pad='SAME',
     )
 
@@ -167,25 +167,40 @@ def _main():
         padding='VALID'
     )
 
+    # layer 4
+    layer4_a = conv_layer(
+        4, layer3_p, 512, is_training,
+        filt=3, stride=1, pad='VALID',
+    )
+
+    layer4_p = layer4_a
+    # layer4_p = tf.nn.max_pool(
+    #     layer4_a,
+    #     ksize=[1, 2, 2, 1],
+    #     strides=[1, 2, 2, 1],
+    #     padding='VALID'
+    # )
+
     print("Input: {}".format(images_ph.get_shape().as_list()))
     print("Layer 1: {}".format(layer1_p.get_shape().as_list()))
     print("Layer 2: {}".format(layer2_p.get_shape().as_list()))
     print("Layer 3: {}".format(layer3_p.get_shape().as_list()))
+    print("Layer 4: {}".format(layer4_p.get_shape().as_list()))
 
     #%%
 
-    layer3_flat = tf.contrib.layers.flatten(layer3_p)
+    layer4_flat = tf.contrib.layers.flatten(layer4_p)
 
-    layer4_a, _ = fc_layer(4, layer3_flat, 1152)
+    layer5_a, _ = fc_layer(5, layer4_flat, 512)
 
-    layer4_a_drop = tf.nn.dropout(layer4_a, keep_prob_ph)
+    layer5_a_drop = tf.nn.dropout(layer5_a, keep_prob_ph)
 
-    _, layer5_z = fc_layer(5, layer4_a_drop, 10)
+    _, layer6_z = fc_layer(6, layer5_a_drop, 10)
 
-    layer_last_z = layer5_z
+    layer_last_z = layer6_z
 
-    print("Layer 4: {}".format(layer3_flat.get_shape().as_list()))
-    print("Layer 5: {}".format(layer_last_z.get_shape().as_list()))
+    print("Layer 5: {}".format(layer4_flat.get_shape().as_list()))
+    print("Layer 6: {}".format(layer_last_z.get_shape().as_list()))
 
     #%% prediction evaluation nodes
 
