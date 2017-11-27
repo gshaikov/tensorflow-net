@@ -168,12 +168,12 @@ def _main():
     )
 
     # layer 4
-    layer4_a = conv_layer(
-        4, layer3_p, 256, is_training,
-        filt=3, stride=1, pad='VALID',
-    )
+    # layer4_a = conv_layer(
+    #     4, layer3_p, 256, is_training,
+    #     filt=3, stride=1, pad='VALID',
+    # )
 
-    layer4_p = layer4_a
+    layer4_p = layer3_p
     # layer4_p = tf.nn.max_pool(
     #     layer4_a,
     #     ksize=[1, 2, 2, 1],
@@ -191,7 +191,7 @@ def _main():
 
     layer4_flat = tf.contrib.layers.flatten(layer4_p)
 
-    layer5_a, _ = fc_layer(5, layer4_flat, 256)
+    layer5_a, _ = fc_layer(5, layer4_flat, 3*3*128)
 
     layer5_a_drop = tf.nn.dropout(layer5_a, keep_prob_ph)
 
