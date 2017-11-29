@@ -16,10 +16,10 @@ After training for appoximately 40 epochs, achieved accuracy **99.14% on a train
 <img src="results/kaggle_score.png">
 </div>
 
-> **Results**
-> - Train accuracy:  99.86%
-> - Dev accuracy:    99.70%
-> - Test accuracy:   99.14%
+> **Accuracy**
+> - Train:  99.86%
+> - Dev:    99.70%
+> - Test:   99.14%
 
 > **Layers in the network**
 > - Conv2D, 5x5, 32 filters
