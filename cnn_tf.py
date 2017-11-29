@@ -191,7 +191,7 @@ def _main():
 
     layer4_flat = tf.contrib.layers.flatten(layer4_p)
 
-    layer5_a, _ = fc_layer(5, layer4_flat, 3*3*128)
+    layer5_a, _ = fc_layer(5, layer4_flat, 3 * 3 * 128)
 
     layer5_a_drop = tf.nn.dropout(layer5_a, keep_prob_ph)
 
