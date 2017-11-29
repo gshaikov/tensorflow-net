@@ -1,6 +1,6 @@
 # ConvNet in Tensorflow Core
 
-I implemented a CNN deep learning model using Tensorflow Core and trained it from scratch using MNIST digits on Amazon Web Services. The dataset is taken from here: [Kaggle MNIST competition](https://www.kaggle.com/c/digit-recognizer/data)
+I implemented a CNN model using Tensorflow Core and trained it from scratch using MNIST digits on Amazon Web Services. The dataset is taken from here: [Kaggle MNIST competition](https://www.kaggle.com/c/digit-recognizer/data)
 
 ## Folder structure
 
