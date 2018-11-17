@@ -1,3 +1,5 @@
+_Disclaimer: this project was completed long time ago during my time in academia._
+
 # ConvNet in Tensorflow Core
 
 I implemented a CNN model using Tensorflow Core and trained it from scratch using MNIST digits on Amazon Web Services. The dataset is taken from here: [Kaggle MNIST competition](https://www.kaggle.com/c/digit-recognizer/data)
