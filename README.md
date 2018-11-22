@@ -1,4 +1,4 @@
-_Disclaimer: this project was completed long time ago during my time in academia._
+_Disclaimer: this project was completed long time ago **during my time in academia**._
 
 # ConvNet in Tensorflow Core
 
