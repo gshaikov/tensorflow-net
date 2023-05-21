@@ -1,4 +1,4 @@
-_Disclaimer: this project was completed long time ago **during my time in academia**._
+_Note: this was a self-study project I worked on at the end of my Masters degree at ETH Zurich in 2017._
 
 # ConvNet in Tensorflow Core
 
